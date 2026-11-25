@@ -1,0 +1,17 @@
+{
+  "name": "WeChat Selkies",
+  "id": "com.songxwn.wechatselkies",
+  "version": "5.0.0",
+  "build": 500,
+  "theme": "theme.json",
+  "capabilities": {
+    "webview": { "hosts": ["*"] },
+    "openUrl": true,
+    "windows": true
+  },
+  "window": {
+    "title": "WeChat Selkies - 本地远程客户端",
+    "defaultSize": { "width": 900, "height": 720 },
+    "minSize": { "width": 420, "height": 480 }
+  }
+}

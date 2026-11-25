@@ -1,0 +1,52 @@
+{
+  "name": "WeChat Selkies",
+  "cssVars": {
+    "theme": {
+      "radius": "10px",
+      "font-sans": "system-ui",
+      "font-mono": "ui-monospace"
+    },
+    "light": {
+      "background": "#f6f8f7",
+      "foreground": "#0f1a16",
+      "card": "#ffffff",
+      "card-foreground": "#0f1a16",
+      "popover": "#ffffff",
+      "popover-foreground": "#0f1a16",
+      "primary": "#07c983",
+      "primary-foreground": "#04241a",
+      "secondary": "#e7eeeb",
+      "secondary-foreground": "#0f1a16",
+      "muted": "#eef2f0",
+      "muted-foreground": "#5c6b65",
+      "accent": "#e3f5ed",
+      "accent-foreground": "#0f1a16",
+      "destructive": "#d92d20",
+      "destructive-foreground": "#ffffff",
+      "border": "#d3ddd8",
+      "input": "#cbd6d1",
+      "ring": "#07c983"
+    },
+    "dark": {
+      "background": "#0c1311",
+      "foreground": "#e6f0eb",
+      "card": "#121b18",
+      "card-foreground": "#e6f0eb",
+      "popover": "#121b18",
+      "popover-foreground": "#e6f0eb",
+      "primary": "#07c983",
+      "primary-foreground": "#04241a",
+      "secondary": "#1b2723",
+      "secondary-foreground": "#e6f0eb",
+      "muted": "#182420",
+      "muted-foreground": "#93a39c",
+      "accent": "#16302a",
+      "accent-foreground": "#e6f0eb",
+      "destructive": "#f97066",
+      "destructive-foreground": "#2a0b08",
+      "border": "#243430",
+      "input": "#2b3d38",
+      "ring": "#07c983"
+    }
+  }
+}

@@ -1,0 +1,85 @@
+# WeChat Selkies · nsh 重构版
+
+使用 [**Native Shell (nsh)**](https://github.com/longbridge/nsh) 以 **纯 TSX** 重写的
+[Docker-Wechat-Localclient](https://github.com/Songxwn/Docker-Wechat-Localclient)（原项目基于 Flutter）。
+
+在应用内管理多个 wechat-selkies 连接，直接打开网页版微信，或交给系统浏览器打开。
+
+> 上游项目：[nickrunning/wechat-selkies](https://github.com/nickrunning/wechat-selkies)
+> 部署说明：[songxwn.com/cloud-wechat](https://songxwn.com/cloud-wechat/)
+
+## 功能
+
+- **多连接管理**：新增 / 编辑 / 删除连接，设置默认连接，全部持久化到本地存储。
+- **应用内 WebView**：使用各平台原生 WebView（WKWebView / Android WebView，Windows 通过 WebView2）加载网页版微信。
+- **外部浏览器打开**：每个连接可切换为在系统浏览器中打开；平台不支持应用内 WebView（如 Linux 桌面）时自动回退。
+- **HTTP Basic 认证**：可选用户名 / 密码，作为 `Authorization: Basic …` 请求头注入。
+- **地址规范化**：未填写协议时自动补全 `https://`。
+- **浅色 / 深色主题**：跟随系统外观，主题色沿用原项目的绿色 `#07C983`。
+- **版本 5.0.0**：与上游 Flutter 应用保持一致。
+
+## 项目结构
+
+```
+.
+├── App.tsx                 应用入口：mount + Window + NavStack
+├── App.test.tsx            nsh test 测试（对应原 widget_test.dart）
+├── nsh.json                应用配置：id、版本、主题、能力（capabilities）
+├── theme.json              设计令牌（shadcn 风格 cssVars，绿色主题）
+├── tsconfig.json           继承 .nsh/tsconfig.json
+└── src/
+    ├── models/connection.ts      Connection 模型与 JSON 往返
+    ├── services/
+    │   ├── storage.ts            基于 nsh `Storage` 的持久化
+    │   └── platform.ts           平台能力检测、openUrl、URL 规范化
+    ├── store/connections.ts      连接状态（signal）：加载 / 增删改 / 设默认
+    ├── nav.ts                    导航栈状态
+    ├── ui/kit.tsx                基于 nsh/base 的主题化控件
+    └── pages/
+        ├── Home.tsx              主界面
+        ├── ConnectionForm.tsx    新增 / 编辑连接对话框
+        └── WebViewPage.tsx       应用内 WebView 页面
+```
+
+## 开发与验证
+
+本项目**不依赖** Rust、Node.js 或 npm，只需要 `nsh` 命令行。
+
+安装 `nsh`：
+
+```bash
+# macOS / Linux
+curl -fsSL https://nsh.dev/install.sh | sh
+
+# Windows (PowerShell)
+irm https://nsh.dev/install.ps1 | iex
+```
+
+运行与检查：
+
+```bash
+nsh run        # 在桌面窗口中运行应用
+nsh check      # 生成 .nsh/types 并做 TypeScript 类型检查
+nsh test       # 无头运行 App.test.tsx
+nsh build      # 构建产物
+nsh package    # 打包为安装包
+```
+
+首次运行前会生成 `.nsh/`（类型声明与构建产物），已在 `.gitignore` 中排除。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 GitHub Actions 上于 Linux 与 Windows 上安装 `nsh`，
+并运行 `nsh check` 与 `nsh test`。无需本地工具链即可验证。
+
+## 与上游 Flutter 版本的差异
+
+- **忽略 SSL 证书错误**：原项目通过 flutter_inappwebview 的
+  `onReceivedServerTrustAuthRequest` 实现。nsh 的 `WebView` 目前没有暴露证书错误回调
+  （此类能力需要 Rust 侧支持），因此 `ignoreSsl` 字段仍然保留并可配置，但**尚未生效**。
+  如需自签名证书场景，可改用系统浏览器打开连接。
+- 应用内 WebView 在 Linux 桌面上不可用，与原项目一致：自动使用系统浏览器。
+
+## 许可
+
+与原项目保持一致（见上游仓库）。

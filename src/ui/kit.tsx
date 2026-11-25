@@ -1,7 +1,7 @@
 // The app's styled layer over nsh/base: a small "console" kit built on the
 // theme tokens (background / card / primary / cyber / border / muted ...).
 
-import { Text, View } from "nsh";
+import { Text, View, type JSX } from "nsh";
 import { Button } from "nsh/base";
 
 export function PrimaryButton(props: { label: string; onPress?: () => void; disabled?: boolean }) {

@@ -1,6 +1,6 @@
 // The add / edit connection dialog. Returns the saved connection, or nothing on cancel.
 
-import { signal, Text, View } from "nsh";
+import { signal, Text, View, type JSX } from "nsh";
 import { Button, Input, Switch } from "nsh/base";
 import { createConnection, kDefaultUrl, type Connection } from "../models/connection";
 import { normalizeUrl, supportsInAppWebView } from "../services/platform";

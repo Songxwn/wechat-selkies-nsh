@@ -2,8 +2,9 @@
   "name": "WeChat Selkies",
   "id": "com.songxwn.wechatselkies",
   "version": "5.0.0",
-  "build": 500,
+  "build": 501,
   "theme": "theme.json",
+  "appearance": "dark",
   "capabilities": {
     "webview": { "hosts": ["*"] },
     "openUrl": true,

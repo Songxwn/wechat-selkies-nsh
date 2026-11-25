@@ -1,44 +1,68 @@
-# WeChat Selkies · nsh 重构版
+# WeChat Selkies · nsh 控制台
 
 使用 [**Native Shell (nsh)**](https://github.com/longbridge/nsh) 以 **纯 TSX** 重写的
 [Docker-Wechat-Localclient](https://github.com/Songxwn/Docker-Wechat-Localclient)（原项目基于 Flutter）。
 
-在应用内管理多个 wechat-selkies 连接，直接打开网页版微信，或交给系统浏览器打开。
+在科技感控制台里管理多个 wechat-selkies 连接：**预览墙**可同时打开多个微信的实时画面，
+点击即可进入单窗口全屏查看，也可交给系统浏览器打开。
 
 > 上游项目：[nickrunning/wechat-selkies](https://github.com/nickrunning/wechat-selkies)
 > 部署说明：[songxwn.com/cloud-wechat](https://songxwn.com/cloud-wechat/)
 
 ## 功能
 
+- **多连接实时预览墙**：每个连接一张卡片，内嵌原生 WebView 实时显示网页版微信，多个连接可同时观看；
+  自适应 1 / 2 / 3 列布局，支持「全部刷新」与一键开关预览。
+- **单窗口全屏查看**：点击「打开」进入独立的 WebView 页面（返回 / 刷新，支持手势前进后退）。
+- **列表模式**：紧凑列表视图，适合连接较多时快速切换。
+- **搜索过滤**：按名称或地址即时筛选连接。
 - **多连接管理**：新增 / 编辑 / 删除连接，设置默认连接，全部持久化到本地存储。
-- **应用内 WebView**：使用各平台原生 WebView（WKWebView / Android WebView，Windows 通过 WebView2）加载网页版微信。
 - **外部浏览器打开**：每个连接可切换为在系统浏览器中打开；平台不支持应用内 WebView（如 Linux 桌面）时自动回退。
 - **HTTP Basic 认证**：可选用户名 / 密码，作为 `Authorization: Basic …` 请求头注入。
 - **地址规范化**：未填写协议时自动补全 `https://`。
-- **浅色 / 深色主题**：跟随系统外观，主题色沿用原项目的绿色 `#07C983`。
+- **深色 / 浅色主题**：默认深色「控制台」外观（霓虹青绿 + 网格光晕），可一键切换。
 - **版本 5.0.0**：与上游 Flutter 应用保持一致。
+
+## 界面
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ ◼ WECHAT SELKIES            控制台   v5.0.0  浅色  添加连接 │
+├──────────────────────────────────────────────────────────┤
+│ [预览墙|列表]  搜索连接…            预览 开  全部刷新  2 连接 │
+│ ┌───────────────────────┐  ┌───────────────────────┐     │
+│ │ ● 本地微信      默认  │  │ ● 同事机器            │     │
+│ │   实时 WebView 预览   │  │   实时 WebView 预览   │     │
+│ │   https://localhost… │  │   https://10.0.0.8…   │     │
+│ │ 打开 刷新 编辑 删除  │  │ 打开 刷新 编辑 默认… │     │
+│ └───────────────────────┘  └───────────────────────┘     │
+└──────────────────────────────────────────────────────────┘
+```
 
 ## 项目结构
 
 ```
 .
 ├── App.tsx                 应用入口：mount + Window + NavStack
-├── App.test.tsx            nsh test 测试（对应原 widget_test.dart）
-├── nsh.json                应用配置：id、版本、主题、能力（capabilities）
-├── theme.json              设计令牌（shadcn 风格 cssVars，绿色主题）
+├── App.test.tsx            nsh test 测试（对应原 widget_test.dart，含预览墙用例）
+├── nsh.json                应用配置：id、版本、主题、外观、能力（capabilities）
+├── theme.json              设计令牌（shadcn 风格 cssVars，深色科技配色）
 ├── tsconfig.json           继承 .nsh/tsconfig.json
 └── src/
+    ├── components/
+    │   └── PreviewTile.tsx       预览墙的单张卡片（内嵌 WebView）
     ├── models/connection.ts      Connection 模型与 JSON 往返
     ├── services/
     │   ├── storage.ts            基于 nsh `Storage` 的持久化
-    │   └── platform.ts           平台能力检测、openUrl、URL 规范化
+    │   ├── platform.ts           平台能力检测、openUrl、URL 规范化
+    │   └── http.ts               Basic 认证头与 base64（不依赖 btoa）
     ├── store/connections.ts      连接状态（signal）：加载 / 增删改 / 设默认
     ├── nav.ts                    导航栈状态
     ├── ui/kit.tsx                基于 nsh/base 的主题化控件
     └── pages/
-        ├── Home.tsx              主界面
+        ├── Home.tsx              控制台：预览墙 / 列表 / 搜索 / 主题
         ├── ConnectionForm.tsx    新增 / 编辑连接对话框
-        └── WebViewPage.tsx       应用内 WebView 页面
+        └── WebViewPage.tsx       单连接全屏 WebView 页面
 ```
 
 ## 开发与验证
@@ -79,6 +103,7 @@ nsh package    # 打包为安装包
   （此类能力需要 Rust 侧支持），因此 `ignoreSsl` 字段仍然保留并可配置，但**尚未生效**。
   如需自签名证书场景，可改用系统浏览器打开连接。
 - 应用内 WebView 在 Linux 桌面上不可用，与原项目一致：自动使用系统浏览器。
+  此时预览墙的卡片显示占位提示，点击后交给系统浏览器打开。
 
 ## 许可
 

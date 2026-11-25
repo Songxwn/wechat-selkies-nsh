@@ -1,6 +1,6 @@
 // The app shell: the window, the navigation stack and the connection store's load.
 
-import { mount, View } from "nsh";
+import { mount } from "nsh";
 import { NavStack } from "nsh/base";
 import { Window } from "nsh/desktop";
 import { nav } from "./src/nav";
@@ -14,19 +14,17 @@ initConnections().catch((error) => console.error("failed to load connections", e
 
 function App() {
   return (
-    <View class="flex-1 bg-background">
-      <NavStack state={nav} class="flex-1">
-        {(route) => {
-          if (route.name === "webview") return <WebViewPage connection={route.connection} />;
-          return <Home />;
-        }}
-      </NavStack>
-    </View>
+    <NavStack state={nav} class="flex-1 bg-background">
+      {(route) => {
+        if (route.name === "webview") return <WebViewPage connection={route.connection} />;
+        return <Home />;
+      }}
+    </NavStack>
   );
 }
 
 mount(() => (
-  <Window id="main" title="WeChat Selkies - 本地远程客户端">
+  <Window id="main" title="WeChat Selkies 控制台">
     <App />
   </Window>
 ));

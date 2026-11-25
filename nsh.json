@@ -6,6 +6,7 @@
   "theme": "theme.json",
   "appearance": "dark",
   "capabilities": {
+    "application": true,
     "webview": { "hosts": ["*"] },
     "openUrl": true,
     "windows": true

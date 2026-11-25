@@ -173,8 +173,6 @@ export function Home() {
         <Text class="text-xs text-muted-foreground">局域网远程客户端 · 控制台</Text>
       </View>
       <Chip label={`v${APP_VERSION}`} textClass="text-muted-foreground font-mono" />
-      <GhostButton label={dark() ? "浅色" : "深色"} onPress={toggleTheme} />
-      <PrimaryButton label="添加连接" onPress={() => openForm(null)} />
     </View>
   );
 
@@ -183,12 +181,6 @@ export function Home() {
       class="flex-1"
       title="WeChat Selkies"
       header={renderHeader()}
-      headerRight={
-        <View class="flex-row items-center gap-2">
-          <GhostButton label={dark() ? "浅色" : "深色"} onPress={toggleTheme} />
-          <PrimaryButton label="添加连接" onPress={() => openForm(null)} />
-        </View>
-      }
     >
       <View class="relative flex-1 bg-background">
         <View class="pointer-events-none absolute left-0 right-0 top-0 h-40 bg-linear-to-b from-primary/10 via-cyber/5 to-transparent" />
@@ -216,6 +208,8 @@ export function Home() {
             </View>
           </If>
           <Chip label={`${allConnections().length} 连接`} textClass="text-muted-foreground font-mono" />
+          <GhostButton label={dark() ? "浅色" : "深色"} onPress={toggleTheme} />
+          <PrimaryButton label="添加连接" onPress={() => openForm(null)} />
         </View>
 
         <Scroll class="flex-1">

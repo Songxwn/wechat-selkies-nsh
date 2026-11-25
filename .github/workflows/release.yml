@@ -120,10 +120,30 @@ jobs:
           if [ -z "${RELEASE_TAG:-}" ]; then
             echo "no release tag; skipping"; exit 0
           fi
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            gh release create "${RELEASE_TAG}" artifacts/* -R "${GITHUB_REPOSITORY}" \
-              --title "${RELEASE_TAG}" --generate-notes --verify-tag
+
+          # GitHub's API can answer 5xx while it is degraded; retry with a
+          # widening backoff instead of failing the release.
+          retry() {
+            local n=0
+            until "$@"; do
+              n=$((n + 1))
+              if [ "$n" -ge 5 ]; then echo "giving up after $n attempts"; return 1; fi
+              echo "attempt $n failed, retrying in $((n * 15))s…"
+              sleep $((n * 15))
+            done
+          }
+
+          TAG="${RELEASE_TAG}"
+          # Create the release once; a rerun reuses it (and re-uploads assets).
+          if ! gh release view "$TAG" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              retry gh release create "$TAG" -R "${GITHUB_REPOSITORY}" \
+                --title "$TAG" --generate-notes --verify-tag
+            else
+              retry gh release create "$TAG" -R "${GITHUB_REPOSITORY}" \
+                --title "$TAG" --generate-notes --target "${GITHUB_SHA}"
+            fi
           else
-            gh release create "${RELEASE_TAG}" artifacts/* -R "${GITHUB_REPOSITORY}" \
-              --title "${RELEASE_TAG}" --generate-notes --target "${GITHUB_SHA}"
+            echo "release $TAG already exists; uploading assets to it"
           fi
+          retry gh release upload "$TAG" artifacts/* -R "${GITHUB_REPOSITORY}" --clobber

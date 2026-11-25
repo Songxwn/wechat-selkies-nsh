@@ -27,9 +27,9 @@
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ ◼ WECHAT SELKIES            控制台   v5.0.0  浅色  添加连接 │
+│ ◼ WECHAT SELKIES                    控制台        v5.0.0  │
 ├──────────────────────────────────────────────────────────┤
-│ [预览墙|列表]  搜索连接…            预览 开  全部刷新  2 连接 │
+│ [预览墙|列表] 搜索连接…  预览 开 全部刷新 2 连接 浅色 添加连接│
 │ ┌───────────────────────┐  ┌───────────────────────┐     │
 │ │ ● 本地微信      默认  │  │ ● 同事机器            │     │
 │ │   实时 WebView 预览   │  │   实时 WebView 预览   │     │
@@ -95,6 +95,27 @@ nsh package    # 打包为安装包
 
 `.github/workflows/ci.yml` 在 GitHub Actions 上于 Linux 与 Windows 上安装 `nsh`，
 并运行 `nsh check` 与 `nsh test`。无需本地工具链即可验证。
+
+## 自动发布
+
+`.github/workflows/release.yml` 在推送版本标签时自动打包并创建 GitHub Release：
+
+- 触发：推送 `v*` 标签（如 `v5.0.0`）；或在 Actions 页面手动 `Run workflow`
+  （填写 `tag` 可同时发布 Release，留空则只构建产物）。
+- 各平台在**各自的 runner** 上原生打包（避免交叉编译）：
+  - `windows-latest` → `nsh package --target windows`：`WeChat Selkies.zip` 与
+    `WeChat Selkies-setup.exe`（runner 预装 Inno Setup 时自动生成安装器）。
+  - `ubuntu-latest` → `nsh package --target linux`：`WeChat Selkies.tar.gz`。
+  - `macos-latest` → `nsh package --target macos`：ad-hoc 签名的 `.app`，再压缩为 zip。
+- 标签版本号会作为 `--app-version` 写入产物（`v5.0.0` → `5.0.0`）。
+- 所有产物也会作为工作流 Artifact 上传，便于每次构建下载。
+
+发布一个版本：
+
+```bash
+git tag v5.0.0
+git push origin v5.0.0
+```
 
 ## 与上游 Flutter 版本的差异
 

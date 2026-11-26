@@ -1,7 +1,7 @@
 {
   "name": "WeChat Selkies",
   "id": "com.songxwn.wechatselkies",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "build": 502,
   "icon": "icon.png",
   "theme": "theme.json",

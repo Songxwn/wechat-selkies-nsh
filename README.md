@@ -23,13 +23,13 @@
 - **HTTP Basic 认证**：可选用户名 / 密码，作为 `Authorization: Basic …` 请求头注入。
 - **地址规范化**：未填写协议时自动补全 `https://`。
 - **深色 / 浅色主题**：默认深色「控制台」外观（霓虹青绿 + 网格光晕），可一键切换。
-- **版本 5.0.1**：与上游 Flutter 应用对齐，并加入应用图标与证书提示。
+- **版本 5.0.2**：与上游 Flutter 应用对齐，并加入应用图标与证书绕过（HTTP :3000）。
 
 ## 界面
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ ◼ WECHAT SELKIES                    控制台        v5.0.1  │
+│ ◼ WECHAT SELKIES                    控制台        v5.0.2  │
 ├──────────────────────────────────────────────────────────┤
 │ [预览墙|列表] 搜索连接…  预览 开 全部刷新 2 连接 浅色 添加连接│
 │ ┌───────────────────────┐  ┌───────────────────────┐     │
@@ -124,35 +124,48 @@ git tag v5.0.0
 git push origin v5.0.0
 ```
 
-## 证书（自签名 HTTPS）
+## 证书（自签名 HTTPS）—— 直接绕过的方式
 
-wechat-selkies 默认用**自签名证书**提供 `https://…:3001`。nsh 的 `WebView` 没有暴露证书错误回调
-（检查了 nsh 全部文档，没有 `ignoreCertificateErrors` 之类的开关，需要 Rust 侧支持），
-所以纯 TSX 无法像 Flutter 版那样「忽略证书错误」。应用改为在页面被证书拦下时给出可用的处理方式：
+wechat-selkies 同时开两个端口（见其 `docker-compose.yml`）：
+**3000 = 明文 HTTP**，**3001 = HTTPS（默认自签名证书）**。
 
-- 卡片 / 全屏页会出现「**证书不受信任**」面板，可一键：
-  1. **用 HTTP 重试** —— 服务同时监听明文 HTTP 时直接可用；
-  2. **浏览器打开** —— 系统浏览器允许手动「继续前往」；
-  3. **关闭**，回到卡片继续其他操作。
-- 永久解决（推荐），任选其一：
-  - 把服务器的自签名证书导入**系统受信任的根证书**（Windows「受信任的根证书颁发机构」、
-    macOS 钥匙串「系统」、Linux `/usr/local/share/ca-certificates` + `update-ca-certificates`）；
-  - 用 [mkcert](https://github.com/FiloSottile/mkcert) 签发证书，并在客户端安装 mkcert 根证书；
-  - 在服务端改为 HTTP（或前面挂一层有正式证书的反向代理，如 Caddy + 自己的域名）。
+所以遇到自签名证书，**最直接的绕过就是不用 TLS，直接连 3000**：
+
+```
+http://<服务器IP>:3000
+```
+
+应用已内置这条路径：页面被证书拦下时会弹出「**证书不受信任**」面板，
+按钮直接写明目标地址（如「**改用 HTTP :3000**」），一键切换即可，无需任何证书配置。
+面板同时提供「改用 HTTP :3001」（服务在该端口也接受明文时用）和「浏览器打开」。
+切换只对当前预览/页面生效，不会改动你保存的连接地址。
+
+> 注意：HTTP 不是安全上下文（secure context）。画面串流正常，但浏览器可能限制
+> 剪贴板等需要安全上下文的能力。要完整功能请用 HTTPS + 信任证书，而不是 HTTP。
+
+nsh 的 `WebView` 没有暴露证书错误回调（已检索 nsh 全部文档，无
+`ignoreCertificateErrors` 之类开关），因此无法像 Flutter 版那样在应用内
+「忽略证书校验」。除 HTTP 端口外，还可以：
+
+- **导入系统受信任根证书**（推荐，保留 HTTPS 全部能力）：
+  - Windows：「受信任的根证书颁发机构」
+  - macOS：钥匙串访问 → 系统 → 信任
+  - Linux：`/usr/local/share/ca-certificates/` + `update-ca-certificates`
+- **用 [mkcert](https://github.com/FiloSottile/mkcert) 签发**，并在客户端安装 mkcert 根证书；
+- **反向代理 + 正式证书**（如 Caddy + 自己的域名）。
 
 连接表单里的「忽略 SSL 证书错误」字段为兼容上游配置而保留，但**不生效**，界面上也有说明。
 
 > 实验性（仅 Windows，未验证保证）：WebView2 会读取环境变量
-> `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`，可从启动脚本里尝试
-> `set WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--ignore-certificate-errors` 再启动应用。
-> 这属于 Chromium 的全局开关（对所有页面生效），不在应用代码控制范围内，若无效请用上面的正规方案。
-> 若要真正在应用内「跳过证书校验」，需要写 Rust 侧的自定义 WebView 模块（nsh 支持 Rust 扩展），成本明显更高。
+> `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`，可在启动 exe 前设置
+> `--ignore-certificate-errors` 尝试强制忽略证书（Chromium 全局开关，对所有页面生效）。
+> 无效时请用 HTTP 端口或信任证书。要在应用内真正实现，需要 Rust 侧自定义 WebView 模块。
 
 ## 与上游 Flutter 版本的差异
 
 - **忽略 SSL 证书错误**：原项目通过 flutter_inappwebview 的
   `onReceivedServerTrustAuthRequest` 实现；nsh 无此回调（见上节「证书」），
-  改为证书错误面板 + HTTP 重试 / 浏览器打开 / 导入系统信任证书。
+  改为「改用 HTTP :3000」等证书面板操作，或导入系统信任证书。
 - 应用内 WebView 在 Linux 桌面上不可用，与原项目一致：自动使用系统浏览器。
   此时预览墙的卡片显示占位提示，点击后交给系统浏览器打开。
 

@@ -9,7 +9,7 @@ import {
   createConnection,
   hasBasicAuth,
 } from "./src/models/connection";
-import { isCertificateError, toPlainHttp } from "./src/services/tls";
+import { httpCandidates, isCertificateError, toPlainHttp } from "./src/services/tls";
 
 /** The window the console runs in: a wide desktop, so the wall shows 3 columns. */
 const desktop = { platform: "windows", width: 1280, height: 800 } as const;
@@ -45,13 +45,21 @@ test("Connection 序列化往返", () => {
   expect(hasBasicAuth(restored)).toBe(true);
 });
 
-test("证书错误能被识别，并可切换为 HTTP 重试", () => {
+test("证书错误能被识别，并可切换到 HTTP 端口", () => {
   expect(isCertificateError("SSL peer certificate or SSH remote key was not OK")).toBe(true);
   expect(isCertificateError("net::ERR_CERT_AUTHORITY_INVALID")).toBe(true);
   expect(isCertificateError("Connection refused")).toBe(false);
 
-  expect(toPlainHttp("https://10.0.0.8:3001")).toBe("http://10.0.0.8:3001");
-  expect(toPlainHttp("http://10.0.0.8:3001")).toBe(null);
+  // wechat-selkies: HTTPS 3001 beside HTTP 3000 — the direct way past a
+  // self-signed certificate is the HTTP port.
+  expect(toPlainHttp("https://10.0.0.8:3001")).toBe("http://10.0.0.8:3000");
+  expect(httpCandidates("https://localhost:3001/app?x=1")).toEqual([
+    "http://localhost:3000/app?x=1",
+    "http://localhost:3001/app?x=1",
+  ]);
+  // Any other port keeps it.
+  expect(httpCandidates("https://example.com:8443")).toEqual(["http://example.com:8443"]);
+  expect(toPlainHttp("http://10.0.0.8:3000")).toBe(null);
   expect(toPlainHttp("10.0.0.8:3001")).toBe(null);
 });
 

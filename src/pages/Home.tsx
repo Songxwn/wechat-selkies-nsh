@@ -299,7 +299,7 @@ export function Home() {
                   </Bullet>
                   <Bullet>若通过 WSL2 或远程 Linux 运行，请将 localhost 改为对应 IP（如 https://192.168.x.x:3001）。</Bullet>
                   <Bullet>
-                    HTTPS 证书不受信任时页面会被拒绝：可点卡片上的「用 HTTP 重试」、用系统浏览器打开，或把服务的自签名证书导入系统受信任根证书（nsh 没有「忽略证书错误」开关）。
+                    HTTPS 证书不受信任时，点卡片上的「**改用 HTTP :3000**」即可绕过证书校验（wechat-selkies 同时提供 3000 端口的明文 HTTP）；也可用系统浏览器打开，或把服务的自签名证书导入系统受信任根证书。
                   </Bullet>
                   <Bullet>剪贴板共享：本机复制的文字、图片可与 Docker 内微信共享，在网页版微信中可直接粘贴发送。</Bullet>
                   <Bullet>文件拖入 / 上传：将文件拖入或选择上传，可发送到 Docker 内微信聊天。</Bullet>

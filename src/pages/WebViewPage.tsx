@@ -7,7 +7,7 @@ import { TlsHelp } from "../components/TlsHelp";
 import { hasBasicAuth, type Connection } from "../models/connection";
 import { basicAuthHeader } from "../services/http";
 import { openExternal } from "../services/platform";
-import { isCertificateError, toPlainHttp } from "../services/tls";
+import { isCertificateError, httpCandidates } from "../services/tls";
 import { nav } from "../nav";
 import { GhostButton } from "../ui/kit";
 
@@ -38,11 +38,9 @@ export function WebViewPage(props: { connection: Connection }) {
     else web?.reload();
   };
 
-  const retryPlainHttp = () => {
-    const next = toPlainHttp(effectiveUrl());
-    if (next === null) return;
+  const retryPlainHttp = (url: string) => {
     errorMessage.set(null);
-    plainHttp.set(next);
+    plainHttp.set(url);
   };
 
   if (headers) {
@@ -94,7 +92,7 @@ export function WebViewPage(props: { connection: Connection }) {
         <If when={certBlocked()}>
           <TlsHelp
             message={errorMessage() ?? ""}
-            httpUrl={toPlainHttp(effectiveUrl())}
+            httpUrls={httpCandidates(effectiveUrl())}
             onRetryHttp={retryPlainHttp}
             onOpenExternal={() => openExternal(effectiveUrl())}
             onDismiss={() => errorMessage.set(null)}

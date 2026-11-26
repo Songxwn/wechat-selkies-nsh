@@ -7,7 +7,7 @@ import { Button } from "nsh/base";
 import { hasBasicAuth, type Connection } from "../models/connection";
 import { basicAuthHeader } from "../services/http";
 import { openExternal, supportsInAppWebView } from "../services/platform";
-import { isCertificateError, toPlainHttp } from "../services/tls";
+import { isCertificateError, httpCandidates } from "../services/tls";
 import { DangerButton, GhostButton, StatusDot } from "../ui/kit";
 import { TlsHelp } from "./TlsHelp";
 
@@ -79,13 +79,6 @@ export function PreviewTile(props: {
     else web.reload();
   };
 
-  const retryPlainHttp = () => {
-    const next = toPlainHttp(effectiveUrl());
-    if (next === null) return;
-    errorMessage.set(null);
-    plainHttp.set(next);
-  };
-
   // A page needing HTTP Basic auth carries it as a request header, and only
   // `load({ src, headers })` sends headers, so such a page is loaded here once
   // and the `src` prop stays empty to avoid a second, unauthenticated request.
@@ -154,8 +147,11 @@ export function PreviewTile(props: {
               <TlsHelp
                 compact
                 message={errorMessage() ?? ""}
-                httpUrl={toPlainHttp(effectiveUrl())}
-                onRetryHttp={retryPlainHttp}
+                httpUrls={httpCandidates(effectiveUrl())}
+                onRetryHttp={(url) => {
+                  errorMessage.set(null);
+                  plainHttp.set(url);
+                }}
                 onOpenExternal={() => openExternal(effectiveUrl())}
                 onDismiss={() => errorMessage.set(null)}
               />

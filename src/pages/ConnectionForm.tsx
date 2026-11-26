@@ -109,7 +109,9 @@ export function ConnectionForm(props: {
       <View class="flex-row items-center justify-between gap-3 py-1">
         <View class="flex-1">
           <Text class="text-sm text-foreground">忽略 SSL 证书错误</Text>
-          <Text class="text-xs text-muted-foreground">nsh 暂未暴露证书回调，该选项目前不生效</Text>
+          <Text class="text-xs text-muted-foreground">
+            nsh 未提供证书回调，此项不生效；自签名证书会被拒绝，可改用 HTTP 或导入系统受信任证书
+          </Text>
         </View>
         <Switch
           checked={ignoreSsl()}

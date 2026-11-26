@@ -4,6 +4,7 @@
 import {
   batch,
   colorScheme,
+  Image,
   Scroll,
   setColorScheme,
   signal,
@@ -15,6 +16,7 @@ import { AlertDialog, Button, Dialog, Input, NavPage } from "nsh/base";
 import { PreviewTile } from "../components/PreviewTile";
 import type { Connection } from "../models/connection";
 import { nav } from "../nav";
+import appIcon from "../../icon.png";
 import {
   allConnections,
   isDefaultConnection,
@@ -165,9 +167,7 @@ export function Home() {
 
   const renderHeader = () => (
     <View class="flex-row flex-wrap items-center gap-3 border-b border-border bg-card/60 px-4 py-3">
-      <View class="size-9 shrink-0 items-center justify-center rounded-(--radius) bg-primary">
-        <Text class="text-base font-bold text-primary-foreground">W</Text>
-      </View>
+      <Image src={appIcon} style={{ width: 36, height: 36, borderRadius: 10 }} />
       <View class="min-w-[140px] flex-1">
         <Text class="text-sm font-semibold tracking-wide text-foreground font-mono">WECHAT SELKIES</Text>
         <Text class="text-xs text-muted-foreground">局域网远程客户端 · 控制台</Text>
@@ -222,7 +222,7 @@ export function Home() {
 
             <If when={allConnections().length === 0}>
               <Panel class="items-center py-10">
-                <Text class="text-4xl text-muted-foreground/30 font-mono">{"{ }"}</Text>
+                <Image src={appIcon} style={{ width: 72, height: 72, borderRadius: 18 }} />
                 <Text class="text-sm text-muted-foreground">还没有连接</Text>
                 <PrimaryButton label="添加第一个连接" onPress={() => openForm(null)} />
               </Panel>
@@ -298,6 +298,9 @@ export function Home() {
                     ），并确保端口 3001 可访问。
                   </Bullet>
                   <Bullet>若通过 WSL2 或远程 Linux 运行，请将 localhost 改为对应 IP（如 https://192.168.x.x:3001）。</Bullet>
+                  <Bullet>
+                    HTTPS 证书不受信任时页面会被拒绝：可点卡片上的「用 HTTP 重试」、用系统浏览器打开，或把服务的自签名证书导入系统受信任根证书（nsh 没有「忽略证书错误」开关）。
+                  </Bullet>
                   <Bullet>剪贴板共享：本机复制的文字、图片可与 Docker 内微信共享，在网页版微信中可直接粘贴发送。</Bullet>
                   <Bullet>文件拖入 / 上传：将文件拖入或选择上传，可发送到 Docker 内微信聊天。</Bullet>
                 </View>

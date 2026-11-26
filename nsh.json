@@ -2,7 +2,8 @@
   "name": "WeChat Selkies",
   "id": "com.songxwn.wechatselkies",
   "version": "5.0.0",
-  "build": 501,
+  "build": 502,
+  "icon": "icon.png",
   "theme": "theme.json",
   "appearance": "dark",
   "capabilities": {

@@ -6,8 +6,10 @@ import { effect, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { Button } from "nsh/base";
 import { hasBasicAuth, type Connection } from "../models/connection";
 import { basicAuthHeader } from "../services/http";
-import { supportsInAppWebView } from "../services/platform";
+import { openExternal, supportsInAppWebView } from "../services/platform";
+import { isCertificateError, toPlainHttp } from "../services/tls";
 import { DangerButton, GhostButton, StatusDot } from "../ui/kit";
+import { TlsHelp } from "./TlsHelp";
 
 /** Why the tile is not showing a live preview. */
 function placeholderReason(connection: Connection, previewEnabled: boolean): string {
@@ -42,10 +44,22 @@ export function PreviewTile(props: {
 }) {
   const loading = signal(false);
   const live = signal(false);
+  const errorMessage = signal<string | null>(null);
+  // Set when the user retried over plain HTTP; cleared when the tile is made.
+  const plainHttp = signal<string | null>(null);
   let web: WebViewRef | undefined;
 
   const canPreview = () =>
     props.previewEnabled() && supportsInAppWebView() && !props.connection().openExternal;
+
+  /** The address the tile shows: the stored one, or its plain-HTTP retry. */
+  const effectiveUrl = () => plainHttp() ?? props.connection().url;
+
+  /** True while the page is blocked by an untrusted certificate. */
+  const certBlocked = () => {
+    const message = errorMessage();
+    return message !== null && isCertificateError(message);
+  };
 
   const headers = () => {
     const connection = props.connection();
@@ -61,18 +75,25 @@ export function PreviewTile(props: {
   const reload = () => {
     if (!web) return;
     const auth = headers();
-    if (auth) web.load({ src: props.connection().url, headers: auth });
+    if (auth) web.load({ src: effectiveUrl(), headers: auth });
     else web.reload();
+  };
+
+  const retryPlainHttp = () => {
+    const next = toPlainHttp(effectiveUrl());
+    if (next === null) return;
+    errorMessage.set(null);
+    plainHttp.set(next);
   };
 
   // A page needing HTTP Basic auth carries it as a request header, and only
   // `load({ src, headers })` sends headers, so such a page is loaded here once
   // and the `src` prop stays empty to avoid a second, unauthenticated request.
   effect(() => {
-    const connection = props.connection();
+    const url = effectiveUrl();
     const enabled = canPreview();
     const auth = headers();
-    if (web && enabled && auth) web.load({ src: connection.url, headers: auth });
+    if (web && enabled && auth) web.load({ src: url, headers: auth });
   });
 
   // "全部刷新" bumps the token; every tile that is previewing reloads.
@@ -109,23 +130,36 @@ export function PreviewTile(props: {
             </If>
             <WebView
               ref={web}
-              src={headers() ? undefined : props.connection().url}
+              src={headers() ? undefined : effectiveUrl()}
               style={{ flex: 1 }}
               onLoadStart={() => {
                 loading.set(true);
                 live.set(false);
+                errorMessage.set(null);
               }}
               onLoad={() => {
                 loading.set(false);
                 live.set(true);
+                errorMessage.set(null);
               }}
-              onError={() => {
+              onError={({ message }) => {
                 loading.set(false);
                 live.set(false);
+                errorMessage.set(message);
               }}
               desktop={{ allowsBackForwardNavigationGestures: true }}
               ios={{ allowsBackForwardNavigationGestures: true }}
             />
+            <If when={certBlocked()}>
+              <TlsHelp
+                compact
+                message={errorMessage() ?? ""}
+                httpUrl={toPlainHttp(effectiveUrl())}
+                onRetryHttp={retryPlainHttp}
+                onOpenExternal={() => openExternal(effectiveUrl())}
+                onDismiss={() => errorMessage.set(null)}
+              />
+            </If>
           </View>
         </If>
       </View>
@@ -133,7 +167,7 @@ export function PreviewTile(props: {
       <View class="flex-row items-center gap-2 border-t border-border px-3 py-1.5">
         <StatusDot class={dotClass()} />
         <Text class="flex-1 text-xs text-muted-foreground font-mono" style={{ numberOfLines: 1 }}>
-          {props.connection().url}
+          {effectiveUrl()}
         </Text>
       </View>
 

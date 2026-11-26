@@ -1,5 +1,7 @@
 # WeChat Selkies · nsh 控制台
 
+<img src="icon.png" width="88" align="right" alt="应用图标" />
+
 使用 [**Native Shell (nsh)**](https://github.com/longbridge/nsh) 以 **纯 TSX** 重写的
 [Docker-Wechat-Localclient](https://github.com/Songxwn/Docker-Wechat-Localclient)（原项目基于 Flutter）。
 
@@ -44,17 +46,22 @@
 ```
 .
 ├── App.tsx                 应用入口：mount + Window + NavStack
-├── App.test.tsx            nsh test 测试（对应原 widget_test.dart，含预览墙用例）
-├── nsh.json                应用配置：id、版本、主题、外观、能力（capabilities）
+├── App.test.tsx            nsh test 测试（含预览墙与证书识别用例）
+├── icon.png                应用图标（1024×1024），由 tools/make_icon.py 生成
+├── nsh.json                应用配置：id、版本、图标、主题、外观、能力（capabilities）
 ├── theme.json              设计令牌（shadcn 风格 cssVars，深色科技配色）
 ├── tsconfig.json           继承 .nsh/tsconfig.json
+├── tools/
+│   └── make_icon.py        图标渲染脚本（Pillow，4× 超采样）
 └── src/
     ├── components/
-    │   └── PreviewTile.tsx       预览墙的单张卡片（内嵌 WebView）
+    │   ├── PreviewTile.tsx       预览墙的单张卡片（内嵌 WebView）
+    │   └── TlsHelp.tsx           证书不受信任时的处理面板
     ├── models/connection.ts      Connection 模型与 JSON 往返
     ├── services/
     │   ├── storage.ts            基于 nsh `Storage` 的持久化
     │   ├── platform.ts           平台能力检测、openUrl、URL 规范化
+    │   ├── tls.ts                证书错误识别与 HTTPS→HTTP 重试
     │   └── http.ts               Basic 认证头与 base64（不依赖 btoa）
     ├── store/connections.ts      连接状态（signal）：加载 / 增删改 / 设默认
     ├── nav.ts                    导航栈状态
@@ -117,12 +124,35 @@ git tag v5.0.0
 git push origin v5.0.0
 ```
 
+## 证书（自签名 HTTPS）
+
+wechat-selkies 默认用**自签名证书**提供 `https://…:3001`。nsh 的 `WebView` 没有暴露证书错误回调
+（检查了 nsh 全部文档，没有 `ignoreCertificateErrors` 之类的开关，需要 Rust 侧支持），
+所以纯 TSX 无法像 Flutter 版那样「忽略证书错误」。应用改为在页面被证书拦下时给出可用的处理方式：
+
+- 卡片 / 全屏页会出现「**证书不受信任**」面板，可一键：
+  1. **用 HTTP 重试** —— 服务同时监听明文 HTTP 时直接可用；
+  2. **浏览器打开** —— 系统浏览器允许手动「继续前往」；
+  3. **关闭**，回到卡片继续其他操作。
+- 永久解决（推荐），任选其一：
+  - 把服务器的自签名证书导入**系统受信任的根证书**（Windows「受信任的根证书颁发机构」、
+    macOS 钥匙串「系统」、Linux `/usr/local/share/ca-certificates` + `update-ca-certificates`）；
+  - 用 [mkcert](https://github.com/FiloSottile/mkcert) 签发证书，并在客户端安装 mkcert 根证书；
+  - 在服务端改为 HTTP（或前面挂一层有正式证书的反向代理，如 Caddy + 自己的域名）。
+
+连接表单里的「忽略 SSL 证书错误」字段为兼容上游配置而保留，但**不生效**，界面上也有说明。
+
+> 实验性（仅 Windows，未验证保证）：WebView2 会读取环境变量
+> `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`，可从启动脚本里尝试
+> `set WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--ignore-certificate-errors` 再启动应用。
+> 这属于 Chromium 的全局开关（对所有页面生效），不在应用代码控制范围内，若无效请用上面的正规方案。
+> 若要真正在应用内「跳过证书校验」，需要写 Rust 侧的自定义 WebView 模块（nsh 支持 Rust 扩展），成本明显更高。
+
 ## 与上游 Flutter 版本的差异
 
 - **忽略 SSL 证书错误**：原项目通过 flutter_inappwebview 的
-  `onReceivedServerTrustAuthRequest` 实现。nsh 的 `WebView` 目前没有暴露证书错误回调
-  （此类能力需要 Rust 侧支持），因此 `ignoreSsl` 字段仍然保留并可配置，但**尚未生效**。
-  如需自签名证书场景，可改用系统浏览器打开连接。
+  `onReceivedServerTrustAuthRequest` 实现；nsh 无此回调（见上节「证书」），
+  改为证书错误面板 + HTTP 重试 / 浏览器打开 / 导入系统信任证书。
 - 应用内 WebView 在 Linux 桌面上不可用，与原项目一致：自动使用系统浏览器。
   此时预览墙的卡片显示占位提示，点击后交给系统浏览器打开。
 

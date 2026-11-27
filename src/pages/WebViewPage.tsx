@@ -1,11 +1,11 @@
 // The single-connection view: one wechat-selkies page in a full-window web
 // view, with optional HTTP Basic auth and a certificate help panel.
 
-import { effect, signal, Text, View, WebView, type WebViewRef } from "nsh";
+import { signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavPage } from "nsh/base";
 import { TlsHelp } from "../components/TlsHelp";
-import { hasBasicAuth, type Connection } from "../models/connection";
-import { basicAuthHeader } from "../services/http";
+import { type Connection } from "../models/connection";
+import { withBasicAuth, withoutCredentials } from "../services/http";
 import { openExternal } from "../services/platform";
 import { httpCandidates, isCertificateError } from "../services/tls";
 import { nav } from "../nav";
@@ -19,11 +19,17 @@ export function WebViewPage(props: { connection: Connection }) {
   // The plain-HTTP address in use, when the user switched off TLS because this
   // platform cannot accept the certificate (see ext/tls-native).
   const plainHttp = signal<string | null>(null);
-  // A signal, not a `let`: the effect below must run again when the web view
-  // node appears, so it loads a Basic-auth page at the right moment.
+  // The web view node, for the refresh button; `src` loads the page.
   const web = signal<WebViewRef | undefined>(undefined);
 
+  /** The address the view is about, without credentials. */
   const effectiveUrl = () => plainHttp() ?? connection.url;
+
+  /** What the web view loads: the address with the connection's credentials. */
+  const webUrl = () => withBasicAuth(effectiveUrl(), connection.username, connection.password);
+
+  /** What the header shows: the address without the password. */
+  const displayUrl = () => withoutCredentials(effectiveUrl());
 
   const certBlocked = () => {
     const message = errorMessage();
@@ -41,31 +47,12 @@ export function WebViewPage(props: { connection: Connection }) {
     errorMessage.set(message);
   };
 
-  // nsh's WebView sends custom request headers through `load({ src, headers })`
-  // (the `src` prop takes no headers), so a Basic-auth page is loaded once here,
-  // and `src` stays empty so the page is not requested twice.
-  const headers = hasBasicAuth(connection)
-    ? { Authorization: basicAuthHeader(connection.username, connection.password) }
-    : null;
-
-  const reload = () => {
-    const node = web();
-    if (!node) return;
-    if (headers) node.load({ src: effectiveUrl(), headers });
-    else node.reload();
-  };
+  const reload = () => web()?.reload();
 
   const retryPlainHttp = (url: string) => {
     errorMessage.set(null);
     plainHttp.set(url);
   };
-
-  if (headers) {
-    effect(() => {
-      const node = web();
-      if (node) node.load({ src: effectiveUrl(), headers });
-    });
-  }
 
   const renderHeader = () => (
     <View class="flex-row items-center gap-3 border-b border-border bg-card/60 px-3 py-3">
@@ -75,7 +62,7 @@ export function WebViewPage(props: { connection: Connection }) {
           {title}
         </Text>
         <Text class="text-xs text-muted-foreground font-mono" style={{ numberOfLines: 1 }}>
-          {effectiveUrl()}
+          {displayUrl()}
         </Text>
       </View>
       <If when={plainHttp() !== null}>
@@ -98,7 +85,7 @@ export function WebViewPage(props: { connection: Connection }) {
         </If>
         <WebView
           ref={web}
-          src={headers ? undefined : effectiveUrl()}
+          src={webUrl()}
           style={{ flex: 1 }}
           onLoadStart={() => {
             loading.set(true);
@@ -117,7 +104,7 @@ export function WebViewPage(props: { connection: Connection }) {
             message={errorMessage() ?? ""}
             httpUrls={httpCandidates(connection.url)}
             onRetryHttp={retryPlainHttp}
-            onOpenExternal={() => openExternal(effectiveUrl())}
+            onOpenExternal={() => openExternal(displayUrl())}
             onDismiss={() => errorMessage.set(null)}
           />
         </If>

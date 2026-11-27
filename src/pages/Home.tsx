@@ -15,6 +15,7 @@ import {
 import { AlertDialog, Button, Dialog, Input, NavPage } from "nsh/base";
 import { PreviewTile } from "../components/PreviewTile";
 import type { Connection } from "../models/connection";
+import { withoutCredentials } from "../services/http";
 import { nav } from "../nav";
 import appIcon from "../../icon.png";
 import {
@@ -70,7 +71,7 @@ function ListRow(props: {
           </If>
         </View>
         <Text class="text-xs text-muted-foreground font-mono" style={{ numberOfLines: 1 }}>
-          {props.connection().url}
+          {withoutCredentials(props.connection().url)}
         </Text>
       </View>
       <Button onPress={props.onOpen} class="rounded-(--radius) bg-primary px-2.5 py-1.5 active:opacity-90">

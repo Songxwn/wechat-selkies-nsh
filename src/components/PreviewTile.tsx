@@ -4,8 +4,8 @@
 
 import { effect, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { Button } from "nsh/base";
-import { hasBasicAuth, type Connection } from "../models/connection";
-import { basicAuthHeader } from "../services/http";
+import { type Connection } from "../models/connection";
+import { withBasicAuth, withoutCredentials } from "../services/http";
 import { openExternal, supportsInAppWebView } from "../services/platform";
 import { httpCandidates, isCertificateError } from "../services/tls";
 import { DangerButton, GhostButton, StatusDot } from "../ui/kit";
@@ -48,16 +48,24 @@ export function PreviewTile(props: {
   // The plain-HTTP address in use, when the user switched this card off TLS
   // because the platform cannot accept the certificate (see ext/tls-native).
   const plainHttp = signal<string | null>(null);
-  // A signal, not a `let`: the web view is created inside `<If>`, after the
-  // effect below has already run once. Reading the signal there makes the effect
-  // run again when the node appears, which is what triggers the Basic-auth load.
+  // The web view node, for the refresh button. The page itself is loaded by the
+  // `src` prop, which also makes a Basic-auth page work (see `webUrl`).
   const web = signal<WebViewRef | undefined>(undefined);
 
   const canPreview = () =>
     props.previewEnabled() && supportsInAppWebView() && !props.connection().openExternal;
 
-  /** The address the tile shows. */
+  /** The address the card is about, without credentials. */
   const effectiveUrl = () => plainHttp() ?? props.connection().url;
+
+  /** What the web view loads: the address with the connection's credentials. */
+  const webUrl = () => {
+    const connection = props.connection();
+    return withBasicAuth(effectiveUrl(), connection.username, connection.password);
+  };
+
+  /** What the card shows: the address without the password. */
+  const displayUrl = () => withoutCredentials(effectiveUrl());
 
   /** Back to the stored address over TLS. */
   const useHttps = () => {
@@ -77,36 +85,10 @@ export function PreviewTile(props: {
     return message !== null && isCertificateError(message);
   };
 
-  const headers = () => {
-    const connection = props.connection();
-    return hasBasicAuth(connection)
-      ? { Authorization: basicAuthHeader(connection.username, connection.password) }
-      : null;
-  };
-
   const dotClass = () =>
     loading() ? "bg-cyber animate-pulse" : live() ? "bg-primary" : "bg-muted-foreground/60";
 
-  /** Reloads the page, re-sending Basic auth when the connection uses it. */
-  const reload = () => {
-    const node = web();
-    if (!node) return;
-    const auth = headers();
-    if (auth) node.load({ src: effectiveUrl(), headers: auth });
-    else node.reload();
-  };
-
-  // A page needing HTTP Basic auth carries it as a request header, and only
-  // `load({ src, headers })` sends headers, so such a page is loaded here once
-  // and the `src` prop stays empty to avoid a second, unauthenticated request.
-  // Reading `web()` makes this run when the node is created, not only before.
-  effect(() => {
-    const node = web();
-    const url = effectiveUrl();
-    const enabled = canPreview();
-    const auth = headers();
-    if (node && enabled && auth) node.load({ src: url, headers: auth });
-  });
+  const reload = () => web()?.reload();
 
   // "全部刷新" bumps the token; every tile that is previewing reloads.
   let seen = props.refreshToken();
@@ -147,7 +129,7 @@ export function PreviewTile(props: {
             </If>
             <WebView
               ref={web}
-              src={headers() ? undefined : effectiveUrl()}
+              src={webUrl()}
               style={{ flex: 1 }}
               onLoadStart={() => {
                 loading.set(true);
@@ -172,7 +154,7 @@ export function PreviewTile(props: {
                   errorMessage.set(null);
                   plainHttp.set(url);
                 }}
-                onOpenExternal={() => openExternal(effectiveUrl())}
+                onOpenExternal={() => openExternal(displayUrl())}
                 onDismiss={() => errorMessage.set(null)}
               />
             </If>
@@ -183,7 +165,7 @@ export function PreviewTile(props: {
       <View class="flex-row items-center gap-2 border-t border-border px-3 py-1.5">
         <StatusDot class={dotClass()} />
         <Text class="flex-1 text-xs text-muted-foreground font-mono" style={{ numberOfLines: 1 }}>
-          {effectiveUrl()}
+          {displayUrl()}
         </Text>
         <If when={plainHttp() !== null}>
           <Button onPress={useHttps} class="rounded-(--radius) px-2 py-0.5 active:opacity-70">

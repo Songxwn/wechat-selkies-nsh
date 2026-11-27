@@ -16,6 +16,7 @@ import {
   setCertificateBypass,
   toPlainHttp,
 } from "./src/services/tls";
+import { withBasicAuth, withoutCredentials } from "./src/services/http";
 
 /** The window the console runs in: a wide desktop, so the wall shows 3 columns. */
 const desktop = { platform: "windows", width: 1280, height: 800 } as const;
@@ -67,6 +68,36 @@ test("证书错误能被识别，并可切换到 HTTP 端口", () => {
   expect(httpCandidates("https://example.com:8443")).toEqual(["http://example.com:8443"]);
   expect(toPlainHttp("http://10.0.0.8:3000")).toBe(null);
   expect(toPlainHttp("10.0.0.8:3001")).toBe(null);
+});
+
+test("Basic 认证写进 URL，整页及其子资源都带上", () => {
+  // 主文档带 header 只能认证主文档；脚本与样式是带认证的同源子资源，所以
+  // 凭据要放进 userinfo，浏览器会为本源的所有请求带上它。
+  expect(withBasicAuth("https://10.0.0.8:3001", "u", "p")).toBe("https://u:p@10.0.0.8:3001");
+  expect(withBasicAuth("https://10.0.0.8:3001/app?x=1", "u", "p")).toBe(
+    "https://u:p@10.0.0.8:3001/app?x=1",
+  );
+  // `:` 与 `@` 会转义，这样 userinfo 的边界不会被凭据里的字符打乱。
+  expect(withBasicAuth("https://h:3001/", "a@b", "p:w")).toBe(
+    "https://a%40b:p%3Aw@h:3001/",
+  );
+  // 中文按 UTF-8 百分号编码。
+  expect(withBasicAuth("https://h:3001/", "用户", "密码")).toBe(
+    "https://%E7%94%A8%E6%88%B7:%E5%AF%86%E7%A0%81@h:3001/",
+  );
+  // 存储里旧的 userinfo 被替换，而不是叠加。
+  expect(withBasicAuth("https://old:secret@h:3001/", "u", "p")).toBe("https://u:p@h:3001/");
+  // 没有配置凭据时原样返回：直接粘进地址里的账号密码继续有效。
+  expect(withBasicAuth("https://h:3001/", "", "")).toBe("https://h:3001/");
+  expect(withBasicAuth("https://old:secret@h:3001/", "", "")).toBe("https://old:secret@h:3001/");
+  // 不是浏览器地址就原样返回。
+  expect(withBasicAuth("localhost:3001", "u", "p")).toBe("localhost:3001");
+});
+
+test("界面上的地址不显示密码", () => {
+  expect(withoutCredentials("https://u:p@h:3001/app")).toBe("https://h:3001/app");
+  expect(withoutCredentials("https://h:3001/app")).toBe("https://h:3001/app");
+  expect(withoutCredentials("https://h:3001?next=/a")).toBe("https://h:3001?next=/a");
 });
 
 test("证书绕过状态由原生模块决定", () => {

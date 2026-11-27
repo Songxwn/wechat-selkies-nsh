@@ -19,7 +19,9 @@ export function WebViewPage(props: { connection: Connection }) {
   // The plain-HTTP address in use, when the user switched off TLS because this
   // platform cannot accept the certificate (see ext/tls-native).
   const plainHttp = signal<string | null>(null);
-  let web!: WebViewRef;
+  // A signal, not a `let`: the effect below must run again when the web view
+  // node appears, so it loads a Basic-auth page at the right moment.
+  const web = signal<WebViewRef | undefined>(undefined);
 
   const effectiveUrl = () => plainHttp() ?? connection.url;
 
@@ -47,8 +49,10 @@ export function WebViewPage(props: { connection: Connection }) {
     : null;
 
   const reload = () => {
-    if (headers) web?.load({ src: effectiveUrl(), headers });
-    else web?.reload();
+    const node = web();
+    if (!node) return;
+    if (headers) node.load({ src: effectiveUrl(), headers });
+    else node.reload();
   };
 
   const retryPlainHttp = (url: string) => {
@@ -58,7 +62,8 @@ export function WebViewPage(props: { connection: Connection }) {
 
   if (headers) {
     effect(() => {
-      if (web) web.load({ src: effectiveUrl(), headers });
+      const node = web();
+      if (node) node.load({ src: effectiveUrl(), headers });
     });
   }
 

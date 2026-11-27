@@ -48,7 +48,10 @@ export function PreviewTile(props: {
   // The plain-HTTP address in use, when the user switched this card off TLS
   // because the platform cannot accept the certificate (see ext/tls-native).
   const plainHttp = signal<string | null>(null);
-  let web: WebViewRef | undefined;
+  // A signal, not a `let`: the web view is created inside `<If>`, after the
+  // effect below has already run once. Reading the signal there makes the effect
+  // run again when the node appears, which is what triggers the Basic-auth load.
+  const web = signal<WebViewRef | undefined>(undefined);
 
   const canPreview = () =>
     props.previewEnabled() && supportsInAppWebView() && !props.connection().openExternal;
@@ -86,20 +89,23 @@ export function PreviewTile(props: {
 
   /** Reloads the page, re-sending Basic auth when the connection uses it. */
   const reload = () => {
-    if (!web) return;
+    const node = web();
+    if (!node) return;
     const auth = headers();
-    if (auth) web.load({ src: effectiveUrl(), headers: auth });
-    else web.reload();
+    if (auth) node.load({ src: effectiveUrl(), headers: auth });
+    else node.reload();
   };
 
   // A page needing HTTP Basic auth carries it as a request header, and only
   // `load({ src, headers })` sends headers, so such a page is loaded here once
   // and the `src` prop stays empty to avoid a second, unauthenticated request.
+  // Reading `web()` makes this run when the node is created, not only before.
   effect(() => {
+    const node = web();
     const url = effectiveUrl();
     const enabled = canPreview();
     const auth = headers();
-    if (web && enabled && auth) web.load({ src: url, headers: auth });
+    if (node && enabled && auth) node.load({ src: url, headers: auth });
   });
 
   // "全部刷新" bumps the token; every tile that is previewing reloads.

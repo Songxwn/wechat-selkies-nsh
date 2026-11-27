@@ -42,7 +42,8 @@ export function TlsHelp(props: {
 
       <If when={!props.compact}>
         <Text class="text-xs text-muted-foreground">
-          nsh 的 WebView 没有「忽略证书」开关。最快的方式是走该服务的明文 HTTP 端口，不需要任何证书：
+          已尝试自动切换到明文 HTTP 端口仍未成功。nsh 的 WebView 没有「忽略证书」开关，
+          可以再点下面的其他 HTTP 地址，或改用系统浏览器：
         </Text>
       </If>
 
@@ -84,7 +85,7 @@ export function TlsHelp(props: {
 
       <If when={!props.compact}>
         <Text class="text-xs text-muted-foreground/70">
-          绕不过时（例如服务只开了 HTTPS）：把自签名证书导入系统受信任根证书，或用 mkcert 签发。
+          都不可用时：把自签名证书导入系统受信任根证书，或用 mkcert 签发。
         </Text>
       </If>
     </View>

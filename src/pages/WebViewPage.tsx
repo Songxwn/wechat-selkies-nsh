@@ -7,7 +7,15 @@ import { TlsHelp } from "../components/TlsHelp";
 import { hasBasicAuth, type Connection } from "../models/connection";
 import { basicAuthHeader } from "../services/http";
 import { openExternal } from "../services/platform";
-import { isCertificateError, httpCandidates } from "../services/tls";
+import {
+  forgetHttpFallback,
+  httpCandidates,
+  initialUrl,
+  isCertificateError,
+  keepTls,
+  nextHttpFallback,
+  rememberHttpFallback,
+} from "../services/tls";
 import { nav } from "../nav";
 import { GhostButton } from "../ui/kit";
 
@@ -16,7 +24,15 @@ export function WebViewPage(props: { connection: Connection }) {
   const title = connection.name === "" ? "微信" : connection.name;
   const loading = signal(true);
   const errorMessage = signal<string | null>(null);
-  const plainHttp = signal<string | null>(null);
+  // Auto-picked plain-HTTP address: known before the first load (a remembered
+  // fallback, or wechat-selkies' self-signed 3001), or after a certificate error.
+  const firstUrl = initialUrl(connection.url);
+  const startsOnHttp = /^http:\/\//i.test(firstUrl);
+  const plainHttp = signal<string | null>(startsOnHttp ? firstUrl : null);
+  const autoSwitched = signal(startsOnHttp);
+  let tried: string[] = [];
+  let reverted = false;
+  let httpLoaded = false;
   let web!: WebViewRef;
 
   const effectiveUrl = () => plainHttp() ?? connection.url;
@@ -24,6 +40,54 @@ export function WebViewPage(props: { connection: Connection }) {
   const certBlocked = () => {
     const message = errorMessage();
     return message !== null && isCertificateError(message);
+  };
+
+  const onHttpFallback = () => plainHttp() !== null || initialUrl(connection.url) !== connection.url;
+
+  /** Refuse the downgrade: stay on TLS for this address from now on. */
+  const useHttps = () => {
+    keepTls(connection.url);
+    forgetHttpFallback(connection.url);
+    plainHttp.set(null);
+    autoSwitched.set(false);
+    errorMessage.set(null);
+    tried = [];
+    reverted = false;
+  };
+
+  /**
+   * Handles a failed load. An untrusted certificate is bypassed without asking
+   * by switching to the next plain-HTTP address; the panel appears only when
+   * every candidate has been tried.
+   */
+  const handleError = (message: string) => {
+    loading.set(false);
+
+    if (isCertificateError(message)) {
+      const next = nextHttpFallback(connection.url, tried);
+      if (next !== null) {
+        tried = [...tried, next];
+        rememberHttpFallback(connection.url, next);
+        autoSwitched.set(true);
+        errorMessage.set(null);
+        plainHttp.set(next);
+        return;
+      }
+      errorMessage.set(message);
+      return;
+    }
+
+    if (onHttpFallback() && !reverted && !httpLoaded) {
+      reverted = true;
+      keepTls(connection.url);
+      forgetHttpFallback(connection.url);
+      plainHttp.set(null);
+      autoSwitched.set(false);
+      errorMessage.set(null);
+      return;
+    }
+
+    errorMessage.set(message);
   };
 
   // nsh's WebView sends custom request headers through `load({ src, headers })`
@@ -39,6 +103,10 @@ export function WebViewPage(props: { connection: Connection }) {
   };
 
   const retryPlainHttp = (url: string) => {
+    tried = [...tried, url];
+    rememberHttpFallback(connection.url, url);
+    autoSwitched.set(false);
+    reverted = false;
     errorMessage.set(null);
     plainHttp.set(url);
   };
@@ -60,6 +128,14 @@ export function WebViewPage(props: { connection: Connection }) {
           {effectiveUrl()}
         </Text>
       </View>
+      <If when={plainHttp() !== null}>
+        <View class="rounded-full border border-cyber px-2 py-0.5">
+          <Text class="text-xs font-medium text-cyber">{autoSwitched() ? "自动 HTTP" : "HTTP"}</Text>
+        </View>
+      </If>
+      <If when={plainHttp() !== null}>
+        <GhostButton label="切回 HTTPS" onPress={useHttps} />
+      </If>
       <GhostButton label="刷新" onPress={reload} />
     </View>
   );
@@ -81,18 +157,16 @@ export function WebViewPage(props: { connection: Connection }) {
           onLoad={() => {
             loading.set(false);
             errorMessage.set(null);
+            if (plainHttp() !== null) httpLoaded = true;
           }}
-          onError={({ message }) => {
-            loading.set(false);
-            errorMessage.set(message);
-          }}
+          onError={({ message }) => handleError(message)}
           ios={{ allowsBackForwardNavigationGestures: true }}
           desktop={{ allowsBackForwardNavigationGestures: true }}
         />
         <If when={certBlocked()}>
           <TlsHelp
             message={errorMessage() ?? ""}
-            httpUrls={httpCandidates(effectiveUrl())}
+            httpUrls={httpCandidates(connection.url)}
             onRetryHttp={retryPlainHttp}
             onOpenExternal={() => openExternal(effectiveUrl())}
             onDismiss={() => errorMessage.set(null)}

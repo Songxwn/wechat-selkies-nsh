@@ -7,10 +7,14 @@ import { nav } from "./src/nav";
 import { Home } from "./src/pages/Home";
 import { WebViewPage } from "./src/pages/WebViewPage";
 import { initConnections } from "./src/store/connections";
+import { loadTlsPrefs } from "./src/services/tls";
 
-// Load the stored connections before the first interaction; the UI follows the
-// signals the store sets once it resolves.
-initConnections().catch((error) => console.error("failed to load connections", error));
+// Load the remembered certificate preferences before the connections, so the
+// first tile already starts on the working address instead of failing once.
+// The UI follows the signals the store sets once this resolves.
+loadTlsPrefs()
+  .then(initConnections)
+  .catch((error) => console.error("failed to load app state", error));
 
 function App() {
   return (

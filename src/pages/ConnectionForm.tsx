@@ -110,7 +110,7 @@ export function ConnectionForm(props: {
         <View class="flex-1">
           <Text class="text-sm text-foreground">忽略 SSL 证书错误</Text>
           <Text class="text-xs text-muted-foreground">
-            nsh 无证书回调，此项不生效；自签名证书请改用 HTTP（wechat-selkies 的 3000 端口），或导入系统受信任证书
+            nsh 无证书回调，此项不生效；自签名证书会被自动绕过（改用 wechat-selkies 的 3000 端口 HTTP），或导入系统受信任证书
           </Text>
         </View>
         <Switch

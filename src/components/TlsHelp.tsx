@@ -1,11 +1,12 @@
 // Shown over a web view whose page failed because its certificate is not
-// trusted: says what happened and offers the fixes that actually work in a
-// pure-TSX nsh app. The main one is switching to the service's plain-HTTP
-// port (wechat-selkies serves 3000 over HTTP beside 3001 over HTTPS), which
-// needs no certificate at all.
+// trusted. Windows normally never gets here: ext/tls-native makes WebView2
+// accept untrusted certificates. Elsewhere (macOS, Linux) the platform web view
+// has no such switch, so the panel offers the fixes that do work: the service's
+// plain-HTTP port, the system browser, or a certificate in the trust store.
 
 import { Text, View } from "nsh";
 import { Button } from "nsh/base";
+import { certificateBypass } from "../services/tls";
 import { GhostButton } from "../ui/kit";
 
 /** A short label for an HTTP candidate: ":3000", or "HTTP" without a port. */
@@ -42,8 +43,9 @@ export function TlsHelp(props: {
 
       <If when={!props.compact}>
         <Text class="text-xs text-muted-foreground">
-          已尝试自动切换到明文 HTTP 端口仍未成功。nsh 的 WebView 没有「忽略证书」开关，
-          可以再点下面的其他 HTTP 地址，或改用系统浏览器：
+          {certificateBypass()
+            ? "已开启忽略证书错误，这次仍被拒绝（重启应用后再试）。也可直接改用下面的明文 HTTP 地址："
+            : "当前平台无法在应用内忽略证书错误（Windows 支持）。可直接改用该服务的明文 HTTP 端口，不需要任何证书："}
         </Text>
       </If>
 
@@ -85,7 +87,7 @@ export function TlsHelp(props: {
 
       <If when={!props.compact}>
         <Text class="text-xs text-muted-foreground/70">
-          都不可用时：把自签名证书导入系统受信任根证书，或用 mkcert 签发。
+          要保留 HTTPS：把自签名证书导入系统受信任根证书，或用 mkcert 签发。
         </Text>
       </If>
     </View>

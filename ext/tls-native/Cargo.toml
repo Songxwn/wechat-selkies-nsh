@@ -1,0 +1,10 @@
+[package]
+name = "tls-native"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+keywords = ["nshm"]
+publish = false
+
+[dependencies]
+nsh-core = "0.7"

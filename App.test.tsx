@@ -10,16 +10,10 @@ import {
   hasBasicAuth,
 } from "./src/models/connection";
 import {
-  forgetHttpFallback,
-  hasHttpFallback,
+  certificateBypass,
   httpCandidates,
-  initialUrl,
   isCertificateError,
-  isTlsOnly,
-  keepTls,
-  nextHttpFallback,
-  preferredUrl,
-  rememberHttpFallback,
+  setCertificateBypass,
   toPlainHttp,
 } from "./src/services/tls";
 
@@ -75,47 +69,14 @@ test("证书错误能被识别，并可切换到 HTTP 端口", () => {
   expect(toPlainHttp("10.0.0.8:3001")).toBe(null);
 });
 
-test("证书错误会自动降级到 HTTP，并记住可用地址", () => {
-  // Auto-bypass: the first candidate is used, the next only if it failed.
-  expect(nextHttpFallback("https://h:3001", [])).toBe("http://h:3000");
-  expect(nextHttpFallback("https://h:3001", ["http://h:3000"])).toBe("http://h:3001");
-  expect(nextHttpFallback("https://h:3001", ["http://h:3000", "http://h:3001"])).toBe(null);
-  expect(nextHttpFallback("http://h:3000", [])).toBe(null);
-
-  // The address that worked is remembered: later loads start on it, path kept,
-  // and other hosts are untouched.
-  expect(preferredUrl("https://h:3001")).toBe("https://h:3001");
-  rememberHttpFallback("https://h:3001", "http://h:3000");
-  expect(hasHttpFallback("https://h:3001")).toBe(true);
-  expect(preferredUrl("https://h:3001/ui?x=1")).toBe("http://h:3000/ui?x=1");
-  expect(preferredUrl("https://g:3001")).toBe("https://g:3001");
-
-  // "切回 HTTPS" forgets it.
-  forgetHttpFallback("https://h:3001");
-  expect(hasHttpFallback("https://h:3001")).toBe(false);
-  expect(preferredUrl("https://h:3001")).toBe("https://h:3001");
-});
-
-test("3001 端口在首次加载前就走 HTTP，切回后不再降级", () => {
-  // wechat-selkies' default pair is bypassed before the first load, so no
-  // certificate error ever appears and no request has to fail first.
-  expect(initialUrl("https://10.9.9.9:3001")).toBe("http://10.9.9.9:3000");
-  expect(initialUrl("https://10.9.9.9:3001/ui?x=1")).toBe("http://10.9.9.9:3000/ui?x=1");
-  // Other addresses are left alone.
-  expect(initialUrl("https://example.com:8443")).toBe("https://example.com:8443");
-  expect(initialUrl("https://example.com")).toBe("https://example.com");
-  expect(initialUrl("http://10.9.9.9:3001")).toBe("http://10.9.9.9:3001");
-
-  // "切回 HTTPS" stops the downgrade for that origin only.
-  keepTls("https://10.9.9.9:3001");
-  expect(isTlsOnly("https://10.9.9.9:3001")).toBe(true);
-  expect(initialUrl("https://10.9.9.9:3001")).toBe("https://10.9.9.9:3001");
-  expect(initialUrl("https://10.9.9.10:3001")).toBe("http://10.9.9.10:3000");
-
-  // A remembered working address wins over the TLS-only flag.
-  rememberHttpFallback("https://10.9.9.9:3001", "http://10.9.9.9:3000");
-  expect(initialUrl("https://10.9.9.9:3001")).toBe("http://10.9.9.9:3000");
-  forgetHttpFallback("https://10.9.9.9:3001");
+test("证书绕过状态由原生模块决定", () => {
+  // App.tsx sets this from tls-native at startup; the flag only decides what the
+  // certificate panel says, the bypass itself lives in the native module.
+  setCertificateBypass(false);
+  expect(certificateBypass()).toBe(false);
+  setCertificateBypass(true);
+  expect(certificateBypass()).toBe(true);
+  setCertificateBypass(false);
 });
 
 test("添加连接并写入存储", async () => {

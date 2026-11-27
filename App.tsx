@@ -3,18 +3,21 @@
 import { mount } from "nsh";
 import { NavStack } from "nsh/base";
 import { Window } from "nsh/desktop";
+import { Tls } from "tls-native";
 import { nav } from "./src/nav";
 import { Home } from "./src/pages/Home";
 import { WebViewPage } from "./src/pages/WebViewPage";
 import { initConnections } from "./src/store/connections";
-import { loadTlsPrefs } from "./src/services/tls";
+import { setCertificateBypass } from "./src/services/tls";
 
-// Load the remembered certificate preferences before the connections, so the
-// first tile already starts on the working address instead of failing once.
-// The UI follows the signals the store sets once this resolves.
-loadTlsPrefs()
-  .then(initConnections)
-  .catch((error) => console.error("failed to load app state", error));
+// Ask the native module to let the platform web view accept an untrusted
+// certificate (Windows: WebView2's --ignore-certificate-errors). It has to
+// happen before the first WebView exists, so before mount() creates the window.
+setCertificateBypass(Tls.accept());
+
+// Load the stored connections before the first interaction; the UI follows the
+// signals the store sets once it resolves.
+initConnections().catch((error) => console.error("failed to load connections", error));
 
 function App() {
   return (

@@ -5,7 +5,7 @@ import { openUrl, platform, signal, WebView } from "nsh";
 
 export const DEPLOY_URL = "https://songxwn.com/cloud-wechat/";
 export const PROJECT_URL = "https://github.com/nickrunning/wechat-selkies";
-export const APP_VERSION = "5.0.3";
+export const APP_VERSION = "5.1.0";
 
 // The original app had no endorsed in-app web view on Linux and fell back to the
 // system browser there; every other platform supports one. `WebView.available()`

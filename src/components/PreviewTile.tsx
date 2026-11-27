@@ -7,15 +7,7 @@ import { Button } from "nsh/base";
 import { hasBasicAuth, type Connection } from "../models/connection";
 import { basicAuthHeader } from "../services/http";
 import { openExternal, supportsInAppWebView } from "../services/platform";
-import {
-  forgetHttpFallback,
-  httpCandidates,
-  initialUrl,
-  isCertificateError,
-  keepTls,
-  nextHttpFallback,
-  rememberHttpFallback,
-} from "../services/tls";
+import { httpCandidates, isCertificateError } from "../services/tls";
 import { DangerButton, GhostButton, StatusDot } from "../ui/kit";
 import { TlsHelp } from "./TlsHelp";
 
@@ -53,18 +45,9 @@ export function PreviewTile(props: {
   const loading = signal(false);
   const live = signal(false);
   const errorMessage = signal<string | null>(null);
-  // The plain-HTTP address in use: picked before the first load when the address
-// is known to need it, or automatically after a certificate error.
-  const firstUrl = initialUrl(props.connection().url);
-  const startsOnHttp = /^http:\/\//i.test(firstUrl);
-  const plainHttp = signal<string | null>(startsOnHttp ? firstUrl : null);
-  const autoSwitched = signal(startsOnHttp);
-  // Plain-HTTP addresses already attempted for this card.
-  let tried: string[] = [];
-  // Guards the single "least surprising" revert from a broken HTTP fallback.
-  let reverted = false;
-  // Whether the plain-HTTP address ever loaded; if not, the port is closed.
-  let httpLoaded = false;
+  // The plain-HTTP address in use, when the user switched this card off TLS
+  // because the platform cannot accept the certificate (see ext/tls-native).
+  const plainHttp = signal<string | null>(null);
   let web: WebViewRef | undefined;
 
   const canPreview = () =>
@@ -73,56 +56,15 @@ export function PreviewTile(props: {
   /** The address the tile shows. */
   const effectiveUrl = () => plainHttp() ?? props.connection().url;
 
-  /** Whether the tile is currently off TLS, by choice or from memory. */
-  const onHttpFallback = () => plainHttp() !== null || initialUrl(props.connection().url) !== props.connection().url;
-
-  /** Refuse the downgrade: stay on TLS for this address from now on. */
+  /** Back to the stored address over TLS. */
   const useHttps = () => {
-    keepTls(props.connection().url);
-    forgetHttpFallback(props.connection().url);
     plainHttp.set(null);
-    autoSwitched.set(false);
     errorMessage.set(null);
-    tried = [];
-    reverted = false;
   };
 
-  /**
-   * A failed load. An untrusted certificate is handled without asking: switch
-   * to the next plain-HTTP address, remember it, and load again. Only when every
-   * candidate is exhausted does the certificate panel appear.
-   */
   const handleError = (message: string) => {
     loading.set(false);
     live.set(false);
-
-    if (isCertificateError(message)) {
-      const next = nextHttpFallback(props.connection().url, tried);
-      if (next !== null) {
-        tried = [...tried, next];
-        rememberHttpFallback(props.connection().url, next);
-        autoSwitched.set(true);
-        errorMessage.set(null);
-        plainHttp.set(next);
-        return;
-      }
-      errorMessage.set(message);
-      return;
-    }
-
-    // The HTTP address did not work either (port closed, wrong host): go back
-    // to TLS and stop pre-empting it, so the panel explains instead of a blank
-    // card. One retry only, and never after HTTP has served the page.
-    if (onHttpFallback() && !reverted && !httpLoaded) {
-      reverted = true;
-      keepTls(props.connection().url);
-      forgetHttpFallback(props.connection().url);
-      plainHttp.set(null);
-      autoSwitched.set(false);
-      errorMessage.set(null);
-      return;
-    }
-
     errorMessage.set(message);
   };
 
@@ -183,7 +125,7 @@ export function PreviewTile(props: {
         </If>
         <If when={plainHttp() !== null}>
           <View class="rounded-full border border-cyber px-2 py-0.5">
-            <Text class="text-xs font-medium text-cyber">{autoSwitched() ? "自动 HTTP" : "HTTP"}</Text>
+            <Text class="text-xs font-medium text-cyber">HTTP</Text>
           </View>
         </If>
       </View>
@@ -210,7 +152,6 @@ export function PreviewTile(props: {
                 loading.set(false);
                 live.set(true);
                 errorMessage.set(null);
-                if (plainHttp() !== null) httpLoaded = true;
               }}
               onError={({ message }) => handleError(message)}
               desktop={{ allowsBackForwardNavigationGestures: true }}
@@ -222,10 +163,6 @@ export function PreviewTile(props: {
                 message={errorMessage() ?? ""}
                 httpUrls={httpCandidates(props.connection().url)}
                 onRetryHttp={(url) => {
-                  tried = [...tried, url];
-                  rememberHttpFallback(props.connection().url, url);
-                  autoSwitched.set(false);
-                  reverted = false;
                   errorMessage.set(null);
                   plainHttp.set(url);
                 }}

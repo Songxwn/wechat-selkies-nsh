@@ -299,7 +299,7 @@ export function Home() {
                   </Bullet>
                   <Bullet>若通过 WSL2 或远程 Linux 运行，请将 localhost 改为对应 IP（如 https://192.168.x.x:3001）。</Bullet>
                   <Bullet>
-                    HTTPS 证书不受信任时**会自动绕过**：`https://…:3001` 的连接会直接以 `http://…:3000` 打开（wechat-selkies 同时提供 3000 端口的明文 HTTP），其他地址遇到证书错误也会自动改走 HTTP；卡片上的「切回 HTTPS」可撤销。也可用系统浏览器打开，或把服务的自签名证书导入系统受信任根证书。
+                    HTTPS 证书不受信任时，**Windows 上应用会自动忽略证书错误**（WebView2 的 `--ignore-certificate-errors`，页面仍走 HTTPS，剪贴板等安全上下文能力可用）；macOS / Linux 的 WebView 没有这个开关，面板里可一键改用 3000 端口的明文 HTTP、用系统浏览器打开，或把自签名证书导入系统受信任根证书。
                   </Bullet>
                   <Bullet>剪贴板共享：本机复制的文字、图片可与 Docker 内微信共享，在网页版微信中可直接粘贴发送。</Bullet>
                   <Bullet>文件拖入 / 上传：将文件拖入或选择上传，可发送到 Docker 内微信聊天。</Bullet>

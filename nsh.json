@@ -1,11 +1,12 @@
 {
   "name": "WeChat Selkies",
   "id": "com.songxwn.wechatselkies",
-  "version": "5.0.3",
-  "build": 504,
+  "version": "5.1.0",
+  "build": 505,
   "icon": "icon.png",
   "theme": "theme.json",
   "appearance": "dark",
+  "rust": ["ext/tls-native"],
   "capabilities": {
     "application": true,
     "webview": { "hosts": ["*"] },

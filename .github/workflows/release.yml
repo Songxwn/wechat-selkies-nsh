@@ -39,6 +39,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # An app with its own Rust crate (ext/tls-native) makes nsh build the
+      # release runner from source, which needs GTK 4 and WebKitGTK 6.0 headers
+      # on Linux (see https://nsh.dev/docs/linux#requirements). Without them
+      # cargo fails in glib-sys: "Package glib-2.0 was not found".
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libwebkitgtk-6.0-dev clang pkg-config
+
       - name: Install nsh (Linux/macOS)
         if: runner.os != 'Windows'
         run: |

@@ -82,6 +82,17 @@
 `nsh` 会用 Cargo 编译它，所以本机需要 Rust 工具链（[rustup](https://rustup.rs)）。
 GitHub Actions 的 runner 已预装 Rust。
 
+带 Rust crate 的应用，`nsh package` 会在本机从源码编译 runtime，所以 Linux 还需要
+GTK 4 与 WebKitGTK 6.0 的开发包（否则 cargo 在 `glib-sys` 报 `Package glib-2.0 was not found`）：
+
+```bash
+sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev clang pkg-config   # Debian / Ubuntu
+sudo dnf install -y gtk4-devel webkitgtk6.0-devel clang                     # Fedora
+sudo pacman -S --needed gtk4 webkitgtk-6.0 clang                            # Arch
+```
+
+`release.yml` 的 Linux job 已自动安装这些包。
+
 安装 `nsh`：
 
 ```bash
